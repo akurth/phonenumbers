@@ -3,10 +3,11 @@ package phonenumbers
 import (
 	"reflect"
 	"regexp"
+	"sync"
 	"testing"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestParse(t *testing.T) {
@@ -38,6 +39,48 @@ func TestParse(t *testing.T) {
 		} else {
 			assert.NoError(t, err, "unexpected error for input %s", tc.input)
 			assert.Equal(t, tc.expectedNum, num.GetNationalNumber(), "national number mismatch for input %s", tc.input)
+		}
+	}
+}
+
+func TestParseNationalNumber(t *testing.T) {
+	var tests = []struct {
+		input       string
+		region      string
+		err         error
+		expectedNum *PhoneNumber
+	}{
+		{input: "033316005", region: "NZ", err: nil, expectedNum: testPhoneNumbers["NZ_NUMBER"]},
+		{input: "33316005", region: "NZ", err: nil, expectedNum: testPhoneNumbers["NZ_NUMBER"]},
+		{input: "03-331 6005", region: "NZ", err: nil, expectedNum: testPhoneNumbers["NZ_NUMBER"]},
+		{input: "03 331 6005", region: "NZ", err: nil, expectedNum: testPhoneNumbers["NZ_NUMBER"]},
+		{input: "tel:03-331-6005;phone-context=+64", region: "NZ", err: nil, expectedNum: testPhoneNumbers["NZ_NUMBER"]},
+		{input: "tel:331-6005;phone-context=+64-3", region: "NZ", err: nil, expectedNum: testPhoneNumbers["NZ_NUMBER"]},
+		{input: "tel:331-6005;phone-context=+64-3", region: "US", err: nil, expectedNum: testPhoneNumbers["NZ_NUMBER"]},
+		{input: "tel:03-331-6005;phone-context=+64;a=%A1", region: "NZ", err: nil, expectedNum: testPhoneNumbers["NZ_NUMBER"]},
+		{input: "tel:03-331-6005;isub=12345;phone-context=+64", region: "NZ", err: nil, expectedNum: testPhoneNumbers["NZ_NUMBER"]},
+		{input: "tel:+64-3-331-6005;isub=12345", region: "NZ", err: nil, expectedNum: testPhoneNumbers["NZ_NUMBER"]},
+		{input: "03-331-6005;phone-context=+64", region: "NZ", err: nil, expectedNum: testPhoneNumbers["NZ_NUMBER"]},
+		{input: "0064 3 331 6005", region: "NZ", err: nil, expectedNum: testPhoneNumbers["NZ_NUMBER"]},
+		{input: "01164 3 331 6005", region: "US", err: nil, expectedNum: testPhoneNumbers["NZ_NUMBER"]},
+		{input: "+64 3 331 6005", region: "US", err: nil, expectedNum: testPhoneNumbers["NZ_NUMBER"]},
+		{input: "+01164 3 331 6005", region: "US", err: nil, expectedNum: testPhoneNumbers["NZ_NUMBER"]},
+		{input: "+0064 3 331 6005", region: "NZ", err: nil, expectedNum: testPhoneNumbers["NZ_NUMBER"]},
+		{input: "+ 00 64 3 331 6005", region: "NZ", err: nil, expectedNum: testPhoneNumbers["NZ_NUMBER"]},
+
+		{input: "tel:253-0000;phone-context=www.google.com", region: "US", err: nil, expectedNum: testPhoneNumbers["US_LOCAL_NUMBER"]},
+		{input: "tel:253-0000;isub=12345;phone-context=www.google.com", region: "US", err: nil, expectedNum: testPhoneNumbers["US_LOCAL_NUMBER"]},
+		{input: "tel:2530000;isub=12345;phone-context=1234.com", region: "US", err: nil, expectedNum: testPhoneNumbers["US_LOCAL_NUMBER"]},
+	}
+
+	for _, tc := range tests {
+		num, err := Parse(tc.input, tc.region)
+
+		if tc.err != nil {
+			assert.EqualError(t, err, tc.err.Error(), "error mismatch for input %s", tc.input)
+		} else {
+			assert.NoError(t, err, "unexpected error for input %s", tc.input)
+			assert.Equal(t, tc.expectedNum, num, "number mismatch for input=%s region=%s", tc.input, tc.region)
 		}
 	}
 }
@@ -173,6 +216,7 @@ func TestIsValidNumber(t *testing.T) {
 		{input: "712276797", region: "RO", err: nil, isValid: true},
 		{input: "8409990936", region: "US", err: nil, isValid: true},
 		{input: "03260000000", region: "PK", err: nil, isValid: true},
+		{input: "+85247431471", region: "HK", err: nil, isValid: true},
 	}
 
 	for _, tc := range tests {
@@ -264,7 +308,7 @@ func TestTruncateTooLongNumber(t *testing.T) {
 
 	for _, tc := range tests {
 		num := &PhoneNumber{}
-		num.CountryCode = proto.Int(tc.country)
+		num.CountryCode = proto.Int32(int32(tc.country))
 		num.NationalNumber = proto.Uint64(tc.input)
 		res := TruncateTooLongNumber(num)
 
@@ -635,7 +679,7 @@ func TestIsNumberMatchWithOneNumber(t *testing.T) {
 	}
 }
 
-////////// Copied from java-libphonenumber
+// //////// Copied from java-libphonenumber
 /**
  * Unit tests for PhoneNumberUtil.java
  *
@@ -701,7 +745,7 @@ var testPhoneNumbers = map[string]*PhoneNumber{
 
 func newPhoneNumber(cc int, natNum uint64) *PhoneNumber {
 	p := &PhoneNumber{}
-	p.CountryCode = proto.Int(cc)
+	p.CountryCode = proto.Int32(int32(cc))
 	p.NationalNumber = proto.Uint64(natNum)
 	return p
 }
@@ -740,7 +784,7 @@ func TestGetMetadata(t *testing.T) {
 			cc:         49,
 			i18nPref:   "00",
 			natPref:    "0",
-			numFmtSize: 18,
+			numFmtSize: 19,
 		}, {
 			name:       "AR",
 			id:         "AR",
@@ -1060,10 +1104,14 @@ func TestBurkinaFaso(t *testing.T) {
 }
 
 // see https://groups.google.com/forum/#!topic/libphonenumber-discuss/pecTIo_HpVE
+//
+// by official decision from the Federal Telecommunication Institute (IFT)(https://www.ift.org.mx/),
+// dialing telephone numbers from across Mexico will change to only 10 digits, among other decisions, take note:
+// Prefix 01 is eliminated for national calls and non-geographic numbers (880 and 900)
 func TestMexico(t *testing.T) {
 	tests := []testCase{
 		{
-			num:           "044 664 899 1010",
+			num:           "664 899 1010", // 664 (area code): local 7 digits
 			parseRegion:   "MX",
 			expectedE164:  "+526648991010",
 			validRegion:   "MX",
@@ -1071,7 +1119,15 @@ func TestMexico(t *testing.T) {
 			isValidRegion: true,
 		},
 		{
-			num:           "01 800 123 2222",
+			num:           "55 8912 4785", // 55 (area code): local 8 digits
+			parseRegion:   "MX",
+			expectedE164:  "+525589124785",
+			validRegion:   "MX",
+			isValid:       true,
+			isValidRegion: true,
+		},
+		{
+			num:           "800 123 2222", // Non-geographic 800
 			parseRegion:   "MX",
 			expectedE164:  "+528001232222",
 			validRegion:   "MX",
@@ -1079,7 +1135,15 @@ func TestMexico(t *testing.T) {
 			isValidRegion: true,
 		},
 		{
-			num:           "+52 664 899 1010",
+			num:           "900 433 1234", // Non-geographic 900
+			parseRegion:   "MX",
+			expectedE164:  "+529004331234",
+			validRegion:   "MX",
+			isValid:       true,
+			isValidRegion: true,
+		},
+		{
+			num:           "+52 664 899 1010", // Long distance international incoming call to cell phone
 			parseRegion:   "",
 			expectedE164:  "+526648991010",
 			validRegion:   "MX",
@@ -1087,12 +1151,20 @@ func TestMexico(t *testing.T) {
 			isValidRegion: true,
 		},
 		{
-			num:           "+52 1 664 899 1010",
-			parseRegion:   "",
-			expectedE164:  "+526648991010",
+			num:           "228 234 5687", // National Long Distance
+			parseRegion:   "MX",
+			expectedE164:  "+522282345687",
 			validRegion:   "MX",
 			isValid:       true,
 			isValidRegion: true,
+		},
+		{
+			num:           "+5214424123123", // too long
+			parseRegion:   "MX",
+			expectedE164:  "+5214424123123",
+			validRegion:   "MX",
+			isValid:       false,
+			isValidRegion: false,
 		},
 	}
 
@@ -1307,6 +1379,7 @@ func TestGetCarrierWithPrefixForNumber(t *testing.T) {
 		{num: "+917999999543", lang: "en", expectedCarrier: "Reliance Jio", expectedPrefix: 917999},
 		{num: "+593992218722", lang: "en", expectedCarrier: "Claro", expectedPrefix: 5939922},
 		{num: "+201987654321", lang: "en", expectedCarrier: "", expectedPrefix: 0},
+		{num: "+201987654321", lang: "notFound", expectedCarrier: "", expectedPrefix: 0},
 	}
 	for _, test := range tests {
 		number, err := Parse(test.num, "ZZ")
@@ -1324,6 +1397,25 @@ func TestGetCarrierWithPrefixForNumber(t *testing.T) {
 			t.Errorf("Expected '%d', got '%d' for '%s'", test.expectedPrefix, prefix, test.num)
 		}
 	}
+}
+
+func TestGetCarrierWithPrefixForNumberWithConcurrency(t *testing.T) {
+	number, _ := Parse("+8613702032331", "ZZ")
+
+	wg := sync.WaitGroup{}
+
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, _, err := GetCarrierWithPrefixForNumber(number, "en")
+			if err != nil {
+				t.Errorf("Failed to getCarrierWithPrefix for the number %s: %s", "+8613702032331", err)
+			}
+		}()
+	}
+
+	wg.Wait()
 }
 
 func TestGetGeocodingForNumber(t *testing.T) {
@@ -1613,6 +1705,47 @@ func TestRegexCacheStrict(t *testing.T) {
 	}
 }
 
+func TestGetSafeCarrierDisplayNameForNumber(t *testing.T) {
+	tests := []struct {
+		num      string
+		lang     string
+		expected string
+	}{
+		{num: "+447387654321", lang: "en", expected: ""},
+		{num: "+244917654321", lang: "en", expected: "Movicel"},
+	}
+	for _, test := range tests {
+		number, err := Parse(test.num, "ZZ")
+		if err != nil {
+			t.Errorf("Failed to parse number %s: %s", test.num, err)
+		}
+		carrier, err := GetSafeCarrierDisplayNameForNumber(number, test.lang)
+		if err != nil {
+			t.Errorf("Failed to getSafeCarrierDisplayNameForNumber for the number %s: %s", test.num, err)
+		}
+		if test.expected != carrier {
+			t.Errorf("Expected '%s', got '%s' for '%s'", test.expected, carrier, test.num)
+		}
+	}
+}
+
 func s(str string) *string {
 	return &str
+}
+
+func BenchmarkLoadMetadata(b *testing.B) {
+	for i := 0; i <= b.N; i++ {
+		initMetadata()
+	}
+}
+
+func BenchmarkGetCarrierWithPrefixForNumber(b *testing.B) {
+	number, _ := Parse("+8613702032331", "ZZ")
+
+	for n := 0; n < b.N; n++ {
+		_, _, err := GetCarrierWithPrefixForNumber(number, "en")
+		if err != nil {
+			b.Errorf("Failed to getCarrierWithPrefix for the number %s: %s", "+8613702032331", err)
+		}
+	}
 }

@@ -1,3 +1,125 @@
+v1.6.8 (2026-01-08)
+-------------------------
+ * Update metadata
+
+v1.6.7 (2025-11-12)
+-------------------------
+ * Update metadata
+
+v1.6.6 (2025-10-10)
+-------------------------
+ * Merge pull request #211 from nyaruka/update_metadata
+ * Update test for DE format number size
+ * Update metadata
+
+v1.6.5 (2025-08-11)
+-------------------------
+ * Update metadata
+
+v1.6.4 (2025-07-22)
+-------------------------
+ * Update metadata
+
+v1.6.3 (2025-05-22)
+-------------------------
+ * Update metadata
+
+v1.6.2 (2025-05-22)
+-------------------------
+ * Update isNumberGeographical to consider GEO_MOBILE_COUNTRIES
+
+v1.6.1 (2025-04-23)
+-------------------------
+ * Update metadata
+
+v1.6.0 (2025-03-20)
+-------------------------
+ * Fix copying mutex in number desc
+ * Update dependencies
+ * Bump supported go versions
+ * Optimize package initialization
+
+v1.5.0 (2025-01-18)
+-------------------------
+ * Add shortnumber emergency functions
+
+v1.4.4 (2024-12-20)
+-------------------------
+ * Update metadata
+
+v1.4.3 (2024-11-29)
+-------------------------
+ * Update metadata
+
+v1.4.2 (2024-11-15)
+-------------------------
+ * Update metadata
+
+v1.4.1 (2024-10-16)
+-------------------------
+ * Update metadata
+
+v1.4.0 (2024-07-15)
+-------------------------
+ * Update GetLengthOfGeographicalAreaCode to match recent libphonenumber changes
+ * Update metadata
+ * Update deps
+
+v1.3.6 (2024-05-27)
+-------------------------
+ * Update metadata
+ * Use https for git fetch
+
+v1.3.5 (2024-05-08)
+-------------------------
+ * Update metadata
+
+v1.3.4 (2024-03-14)
+-------------------------
+ * Update metadata
+
+v1.3.3 (2024-03-13)
+-------------------------
+ * Bump google.golang.org/protobuf from 1.31.0 to 1.33.0
+
+v1.3.2 (2024-02-18)
+-------------------------
+ * Update metadata
+
+v1.3.1 (2024-01-26)
+-------------------------
+ * Update metadata
+
+v1.3.0 (2023-12-14)
+-------------------------
+ * Refactor buildmetadata, no longer requires SVN
+ * Update metadata
+
+v1.2.3 (2023-12-12)
+-------------------------
+ * Update metadata
+ * Update dependencies and go version to 1.19
+
+v1.2.2 (2023-11-24)
+-------------------------
+ * Update metadata
+ * Update support for phone-context
+
+v1.2.1 (2023-11-20)
+-------------------------
+ * Update metadata
+ * Replace github.com/golang/protobuf with google.golang.org/protobuf
+
+v1.2.0 (2023-11-17)
+-------------------------
+ * Update metadata
+ * Fix regex matching in GetLengthOfNationalDestinationCode
+ * Implement carrier GetSafeDisplayName
+
+v1.1.9 (2023-11-08)
+-------------------------
+ * Update metadata
+
 v1.1.8 (2023-08-09)
 -------------------------
  * Update metadata
